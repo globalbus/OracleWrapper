@@ -37,20 +37,21 @@ class ReflectionSqlTypeValue<T> {
     private final InstantiatorProvider instantiatorProvider;
     private List<Method> fields;
 
-    public ReflectionSqlTypeValue(Class<T> clazz, StructDescriptor desc, InstantiatorProvider instantiatorProvider) throws SQLException {
-        this.clazz=clazz;
-        this.instantiatorProvider=instantiatorProvider;
+    ReflectionSqlTypeValue(Class<T> clazz, StructDescriptor desc, InstantiatorProvider instantiatorProvider) throws SQLException {
+        this.clazz = clazz;
+        this.instantiatorProvider = instantiatorProvider;
         mapFields(desc);
     }
 
-    public SqlTypeValue getSqlTypeValue(T obj){
+    SqlTypeValue getSqlTypeValue(T obj) {
         return new MappedSqlTypeValue(obj);
     }
+
     private void mapFields(StructDescriptor desc) throws SQLException {
         fields = new LinkedList<>();
         NamedTypeList fieldList = ResultSetUtils.getTypes(desc.getMetaData());
         for (String f : fieldList.getNames())
-            fields.add(findGetterOrSetter(clazz, f, true).orElseThrow(RuntimeException::new));
+            fields.add(findGetterOrSetter(clazz, f, true).orElseThrow(()->new RuntimeException("Property not found in object"+f)));
     }
 
 
@@ -73,6 +74,7 @@ class ReflectionSqlTypeValue<T> {
 
         return Optional.ofNullable(result);
     }
+
     class MappedSqlTypeValue extends AbstractSqlTypeValue {
         private final Object object;
 
@@ -90,7 +92,7 @@ class ReflectionSqlTypeValue<T> {
                     return instantiatorProvider.valueToDatabase(method.invoke(object));
                 }
 
-        }).collect(Collectors.toList());
+            }).collect(Collectors.toList());
             return new STRUCT(desc, con, values.toArray());
         }
     }

@@ -23,35 +23,34 @@ import java.util.stream.Stream;
 public class StoredProcedureWrapper {
     private final InternalStoredProcedure internal;
     private InstantiatorProvider instantiatorProvider;
-    public final static String OUTPUT_PARAM_NAME="output";
+    public final static String OUTPUT_PARAM_NAME = "output";
     private InstantiatorCache instantiatorCache;
 
     public void declareParameters(List<SqlParameter> sqlParameters) {
-        if(internal.isCompiled())
+        if (internal.isCompiled())
             throw new IllegalStateException("Object cannot be reinitialized");
         sqlParameters.forEach(internal::declareParameter);
         internal.compile();
     }
 
-    private static class InternalStoredProcedure extends StoredProcedure{
-        InternalStoredProcedure(JdbcTemplate jdbcTemplate, String procName){
+    private static class InternalStoredProcedure extends StoredProcedure {
+        InternalStoredProcedure(JdbcTemplate jdbcTemplate, String procName) {
             super(jdbcTemplate, procName);
         }
     }
 
     public StoredProcedureWrapper(JdbcTemplate jdbcTemplate, String procName, InstantiatorProvider instantiatorProvider) {
-        this.internal=new InternalStoredProcedure(jdbcTemplate, procName);
+        this.internal = new InternalStoredProcedure(jdbcTemplate, procName);
         this.instantiatorProvider = instantiatorProvider;
-        this.instantiatorCache= new InstantiatorCache(instantiatorProvider);
+        this.instantiatorCache = new InstantiatorCache(instantiatorProvider);
     }
 
     public <T> void registerReflectiveConversion(Class<T> clazz, String typeName) throws SQLException {
-        try(OracleConnection con = getOracleConnection()) {
+        try (OracleConnection con = getOracleConnection()) {
             StructDescriptor desc = new StructDescriptor(typeName, con);
             ReflectionSqlTypeValue<T> reflectionSqlTypeValue = new ReflectionSqlTypeValue<>(clazz, desc, instantiatorProvider);
             instantiatorProvider.getTypeConversionRegistry().registerConversionToDatabase(clazz, reflectionSqlTypeValue::getSqlTypeValue);
-        }
-        finally {
+        } finally {
             getOracleConnection().close();
         }
     }
@@ -75,9 +74,9 @@ public class StoredProcedureWrapper {
         try {
             if (output instanceof OracleArray) {
                 Object[] structs = (Object[]) ((OracleArray) output).getArray();
-                InstantiatorCache.InstatiatorEntry<T> entry = instantiatorCache.get(outputClass);
+                InstantiatorCache.InstantiatorEntry<T> entry = instantiatorCache.get(outputClass);
                 if (entry == null)
-                    entry =instantiatorCache.add(outputClass, (STRUCT) structs[0]);
+                    entry = instantiatorCache.add(outputClass, (STRUCT) structs[0]);
                 for (Object obj : structs) {
                     Object[] attr = ((STRUCT) obj).getAttributes();
                     T javaObject = entry.instantiate(attr);
@@ -93,14 +92,13 @@ public class StoredProcedureWrapper {
     }
 
 
-
-    protected  <T> T getOutputObject(Class<T> outputClass, Object output) {
+    protected <T> T getOutputObject(Class<T> outputClass, Object output) {
         try {
             if (output instanceof OracleStruct) {
                 STRUCT struct = (STRUCT) output;
-                InstantiatorCache.InstatiatorEntry<T> entry = instantiatorCache.get(outputClass);
+                InstantiatorCache.InstantiatorEntry<T> entry = instantiatorCache.get(outputClass);
                 if (entry == null)
-                    entry=instantiatorCache.add(outputClass, struct);
+                    entry = instantiatorCache.add(outputClass, struct);
                 Object[] attr = struct.getAttributes();
                 T javaObject = entry.instantiate(attr);
                 if (javaObject != null)

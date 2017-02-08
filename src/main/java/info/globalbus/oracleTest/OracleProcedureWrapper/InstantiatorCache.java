@@ -19,24 +19,28 @@ import java.util.Map;
 public class InstantiatorCache {
     private final InstantiatorProvider instantiatorProvider;
 
-    public InstantiatorCache(InstantiatorProvider instantiatorProvider){
-        this.instantiatorProvider=instantiatorProvider;
+    public InstantiatorCache(InstantiatorProvider instantiatorProvider) {
+        this.instantiatorProvider = instantiatorProvider;
     }
-    private final Map<Class<?>, InstatiatorEntry> instatiatorCache = new HashMap<>();
+
+    private final Map<Class<?>, InstantiatorEntry> instatiatorCache = new HashMap<>();
+
     @SuppressWarnings("unchecked")
-    public <T> InstatiatorEntry<T> get(Class<T> clazz){
+    public <T> InstantiatorEntry<T> get(Class<T> clazz) {
         return instatiatorCache.get(clazz);
     }
-    public <T> InstatiatorEntry<T> add(Class<T> outputClass, STRUCT struct) throws SQLException {
+
+    public <T> InstantiatorEntry<T> add(Class<T> outputClass, STRUCT struct) throws SQLException {
         ResultSetMetaData meta = struct.getDescriptor().getMetaData();
         NamedTypeList types = ResultSetUtils.getTypes(meta);
         Instantiator<T> ctor = instantiatorProvider.findInstantiator(outputClass, types);
-        InstatiatorEntry<T> entry = new InstatiatorEntry<>(ctor, types);
+        InstantiatorEntry<T> entry = new InstantiatorEntry<>(ctor, types);
         instatiatorCache.put(outputClass, entry);
         return entry;
     }
+
     @Value
-    static class InstatiatorEntry<T> {
+    static class InstantiatorEntry<T> {
         final Instantiator<T> ctor;
         final NamedTypeList types;
 
