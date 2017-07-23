@@ -1,6 +1,8 @@
 package info.globalbus.oraclewrapper.example;
 
 import javax.sql.DataSource;
+
+import info.globalbus.oraclewrapper.InstantiatorWrapper;
 import org.dalesbred.dialect.OracleDialect;
 import org.dalesbred.internal.instantiation.InstantiatorProvider;
 import org.springframework.boot.SpringApplication;
@@ -19,8 +21,8 @@ public class Application {
     }
 
     @Bean
-    InstantiatorProvider instantiatorProvider() {
-        return new InstantiatorProvider(new OracleDialect());
+    InstantiatorWrapper instantiatorProvider() {
+        return new InstantiatorWrapper();
     }
 
     @Bean

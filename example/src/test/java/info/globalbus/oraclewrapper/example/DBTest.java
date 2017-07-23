@@ -1,6 +1,7 @@
 package info.globalbus.oraclewrapper.example;
 
 import java.util.List;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,6 @@ public class DBTest {
         obj.setRPart(5.0);
         obj.setIPart(6.0);
         List<Complex> test = exampleProcDao.getList(obj);
-        test.size();
+        Assert.assertTrue(test.size() == 2);
     }
 }

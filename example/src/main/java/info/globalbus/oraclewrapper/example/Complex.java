@@ -1,5 +1,6 @@
 package info.globalbus.oraclewrapper.example;
 
+import info.globalbus.oraclewrapper.OracleStruct;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +9,7 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @NoArgsConstructor
+@OracleStruct
 public class Complex {
     Double rPart;
     Double iPart;
