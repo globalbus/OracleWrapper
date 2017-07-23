@@ -1,44 +1,14 @@
-group 'info.globalbus'
+group 'info.globalbus.oraclewrapper'
 version '1.0-SNAPSHOT'
 
-apply plugin: 'java'
-apply plugin: 'idea'
-apply plugin: 'war'
 
-buildscript {
-    ext {
-        springBootVersion = '1.4.3.RELEASE'
-    }
+subprojects {
+    apply plugin: 'java'
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
     repositories {
         mavenLocal()
         mavenCentral()
-        maven { url "https://repo.spring.io/milestone" }
-        maven { url "https://plugins.gradle.org/m2/" }
     }
 }
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
 
-repositories {
-    mavenLocal()
-    mavenCentral()
-    maven { url "https://repo.spring.io/milestone" }
-    maven { url "https://plugins.gradle.org/m2/" }
-}
-dependencies {
-    compile("org.springframework.boot:spring-boot-devtools:${springBootVersion}")
-    compile("org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}")
-    compile('org.projectlombok:lombok:+')
-    compile("org.springframework.boot:spring-boot-starter-web:${springBootVersion}")
-    compile("org.springframework.boot:spring-boot-starter-thymeleaf:${springBootVersion}")
-    compile("org.springframework.boot:spring-boot-starter-jdbc:${springBootVersion}")
-    compile('nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:+')
-    compile('org.thymeleaf:thymeleaf:+')
-    compile('org.thymeleaf:thymeleaf-spring4:+')
-    compile('org.dalesbred:dalesbred:1.2.3')
-    compile('commons-beanutils:commons-beanutils:+')
-    providedCompile files('lib/ojdbc6_g.jar')
-    testCompile("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
-    testCompile("org.springframework.boot:spring-boot-starter-tomcat:${springBootVersion}")
-    testCompile('org.apache.tomcat:tomcat-catalina:8.0.32')
-}

@@ -1,0 +1,11 @@
+group 'info.globalbus'
+version '1.0-SNAPSHOT'
+
+
+dependencies {
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    compile group: 'org.springframework', name: 'spring-jdbc', version: '4.3.10.RELEASE'
+    compile('org.dalesbred:dalesbred:1.2.3')
+    compile files('lib/ojdbc6_g.jar')
+    compileOnly('org.projectlombok:lombok:+')
+}

@@ -1,0 +1,18 @@
+plugins {
+    id "org.springframework.boot" version "1.5.4.RELEASE"
+}
+
+group 'info.globalbus'
+version '1.0-SNAPSHOT'
+
+def springBootVersion = "1.5.4.RELEASE"
+
+dependencies {
+    compile project(':core')
+    compile("org.springframework.boot:spring-boot-devtools:${springBootVersion}")
+    compile("org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}")
+    compile("org.springframework.boot:spring-boot-starter-jdbc:${springBootVersion}")
+    testCompile("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+    testCompile("org.springframework.boot:spring-boot-starter-tomcat:${springBootVersion}")
+    compileOnly('org.projectlombok:lombok:+')
+}

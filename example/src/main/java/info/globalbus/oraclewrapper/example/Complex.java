@@ -1,4 +1,4 @@
-package info.globalbus.oracleTest;
+package info.globalbus.oraclewrapper.example;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

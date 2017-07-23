@@ -1,2 +1,4 @@
-rootProject.name = 'oracleTest'
+rootProject.name = 'oracleProcedureWrapper'
 
+include 'core'
+include 'example'
