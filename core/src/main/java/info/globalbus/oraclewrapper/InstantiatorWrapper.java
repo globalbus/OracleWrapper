@@ -43,12 +43,6 @@ public class InstantiatorWrapper {
         instantiatorCache.setKnownInput(source);
     }
 
-    //register custom conversions
-    public <S> void registerListConversionToDatabase(Class<S> source, Function<S, ?> conversion) {
-        instantiatorProvider.getTypeConversionRegistry().registerConversionToDatabase(source, conversion);
-        instantiatorCache.setKnownInput(source);
-    }
-
     public <T> List<T> getOutputList(Class<T> outputClass, Object output) {
         try {
             if (output instanceof OracleArray) {

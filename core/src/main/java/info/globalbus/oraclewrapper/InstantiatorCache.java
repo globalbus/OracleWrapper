@@ -28,16 +28,15 @@ class InstantiatorCache {
     private final InstantiatorProvider instantiatorProvider;
     private final Map<Class<?>, InstantiatorEntry> instatiatorCache = new HashMap<>();
     private final Map<String, Class<?>> instatiatorNameCache = new HashMap<>();
-    private final Set<Class<?>> knownOutputTypes = new HashSet<>();
     private final Set<Class<?>> knownInputTypes = new HashSet<>();
     private final ReflectionUtils.PrivateMethod candidateConstructors;
-    private final ReflectionUtils.PrivateMethod implictInstantiator;
+    private final ReflectionUtils.PrivateMethod implicitInstantiator;
 
     InstantiatorCache(InstantiatorProvider instantiatorProvider) {
         this.instantiatorProvider = instantiatorProvider;
         candidateConstructors = ReflectionUtils.callPrivate(instantiatorProvider,
             "candidateConstructorsSortedByDescendingParameterCount", Class.class);
-        implictInstantiator = ReflectionUtils.callPrivate(instantiatorProvider,
+        implicitInstantiator = ReflectionUtils.callPrivate(instantiatorProvider,
             "implicitInstantiatorFrom", Constructor.class, NamedTypeList.class);
 
     }
@@ -51,33 +50,31 @@ class InstantiatorCache {
         ResultSetMetaData meta = desc.getMetaData();
         NamedTypeList types = ResultSetUtils.getTypes(meta);
         Instantiator<T> ctor;
-        if (types.size() == 1) {
+        if (types.size() == 1 && types.getType(0).equals(oracle.jdbc.OracleStruct.class)) {
             ctor = findSingleInstantiator(outputClass, types);
         } else {
             ctor = instantiatorProvider.findInstantiator(outputClass, types);
         }
         InstantiatorEntry<T> entry = new InstantiatorEntry<>(ctor, types);
         instatiatorCache.put(outputClass, entry);
-        knownOutputTypes.add(outputClass);
         return entry;
     }
 
     @SuppressWarnings("unchecked")
     private <T> Instantiator<T> findSingleInstantiator(Class<T> cl, NamedTypeList types) {
         return ((Stream<? extends Constructor<?>>) candidateConstructors.call(cl))
-            .map(ctor -> ((Optional<Instantiator<T>>) implictInstantiator.call(ctor, types)).orElse(null))
+            .map(ctor -> ((Optional<Instantiator<T>>) implicitInstantiator.call(ctor, types)).orElse(null))
             .filter(Objects::nonNull)
             .findFirst()
             .orElseThrow(() -> new InstantiationFailureException("could not find a way to instantiate " + cl + " with parameters " + types));
     }
 
     boolean isKnown(Class<?> type) {
-        return knownOutputTypes.contains(type);
+        return instatiatorNameCache.values().contains(type);
     }
 
     void setKnown(Class<?> type) {
-        knownOutputTypes.add(type);
-        addNameCache(type, SqlStructParameter.getTypeName(type));
+        instatiatorNameCache.put(SqlStructParameter.getTypeName(type), type);
     }
 
     boolean isKnownInput(Class<?> type) {
@@ -86,10 +83,6 @@ class InstantiatorCache {
 
     void setKnownInput(Class<?> type) {
         knownInputTypes.add(type);
-    }
-
-    private void addNameCache(Class<?> type, String sqlName) {
-        instatiatorNameCache.put(sqlName, type);
     }
 
     Class<?> getClassByName(SQLName sqlName) throws SQLException {
