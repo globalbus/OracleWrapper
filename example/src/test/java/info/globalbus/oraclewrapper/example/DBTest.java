@@ -13,13 +13,24 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 public class DBTest {
     @Autowired
     ExampleProcDao exampleProcDao;
+    @Autowired
+    TestDao testDao;
+
+    @Test
+    public void exampleTest() throws Exception {
+        Complex obj = new Complex();
+        obj.setRPart(5.0);
+        obj.setIPart(6.0);
+        List<Complex> test = exampleProcDao.getList(obj);
+        Assert.assertTrue(test.size() == 2);
+    }
 
     @Test
     public void test() throws Exception {
         Complex obj = new Complex();
         obj.setRPart(5.0);
         obj.setIPart(6.0);
-        List<Complex> test = exampleProcDao.getList(obj);
-        Assert.assertTrue(test.size() == 2);
+        Response test = testDao.get(obj);
+        Assert.assertTrue(test.message != null);
     }
 }

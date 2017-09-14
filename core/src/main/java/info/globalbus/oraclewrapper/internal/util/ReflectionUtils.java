@@ -1,7 +1,11 @@
 package info.globalbus.oraclewrapper.internal.util;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.dalesbred.annotation.DalesbredIgnore;
 import org.dalesbred.internal.instantiation.InstantiationFailureException;
@@ -31,5 +35,35 @@ public class ReflectionUtils {
         }
 
         return Optional.ofNullable(result);
+    }
+
+    public static Optional<Field> findField(Class<?> cl, String fieldName) {
+        return Arrays.stream(cl.getDeclaredFields()).filter(f -> f.getName().equals(fieldName)).findFirst();
+    }
+
+    public static PrivateMethod callPrivate(Object callable, String methodName, Class<?>... params) {
+        try {
+            Method method = callable.getClass().getDeclaredMethod(methodName, params);
+            method.setAccessible(true);
+            return new PrivateMethod(callable, method);
+        } catch (Exception ex) {
+            log.error("Cannot find method", ex);
+        }
+        return null;
+    }
+
+    @AllArgsConstructor
+    @Data
+    public static class PrivateMethod {
+        Object object;
+        Method method;
+
+        public Object call(Object... args) {
+            try {
+                return method.invoke(object, args);
+            } catch (Exception ex) {
+                return null;
+            }
+        }
     }
 }

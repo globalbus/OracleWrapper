@@ -1,23 +1,22 @@
 package info.globalbus.oraclewrapper;
 
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.sql.Connection;
+import java.lang.reflect.ParameterizedType;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import oracle.jdbc.OracleConnection;
-import oracle.sql.STRUCT;
 import oracle.sql.StructDescriptor;
 import org.dalesbred.internal.instantiation.NamedTypeList;
 import org.dalesbred.internal.jdbc.ResultSetUtils;
 import org.springframework.jdbc.core.SqlTypeValue;
-import org.springframework.jdbc.core.support.AbstractSqlTypeValue;
 
+import static info.globalbus.oraclewrapper.internal.util.ReflectionUtils.findField;
 import static info.globalbus.oraclewrapper.internal.util.ReflectionUtils.findGetterOrSetter;
-
 /**
  * Class for caching Java to Database conversion.
  */
@@ -25,7 +24,7 @@ import static info.globalbus.oraclewrapper.internal.util.ReflectionUtils.findGet
 class ReflectionSqlTypeValue<T> {
     private final Class<T> clazz;
     private final InstantiatorWrapper instantiatorWrapper;
-    private List<Method> fields;
+    private final List<MethodFieldWrapper> fields = new LinkedList<>();
 
     ReflectionSqlTypeValue(Class<T> clazz, OracleConnection con, String typeName,
         InstantiatorWrapper instantiatorWrapper) throws SQLException {
@@ -36,51 +35,53 @@ class ReflectionSqlTypeValue<T> {
     }
 
     SqlTypeValue getSqlTypeValue(Object obj) {
-        return new MappedSqlTypeValue(obj);
+        return new MappedSqlTypeValue(fields, instantiatorWrapper, obj);
     }
 
     private void mapFields(StructDescriptor desc, OracleConnection con) throws SQLException {
-        fields = new LinkedList<>();
         NamedTypeList fieldList = ResultSetUtils.getTypes(desc.getMetaData());
         for (String f : fieldList.getNames()) {
-            Method value = findGetterOrSetter(clazz, f, true)
-                .orElseThrow(() -> new RuntimeException("Property not found in object " + f));
+            Method value = findGetterOrSetter(clazz, f, true).orElseThrow(() ->
+                new ProcedureWrapperException("Property " + f + " not found in object " + clazz.getName()));
             Class<?> innerType = value.getReturnType();
-            if (innerType.getAnnotation(OracleStruct.class) != null && !instantiatorWrapper.getInstantiatorCache()
-                .isKnownInput(innerType)) {
-                ReflectionSqlTypeValue<?> reflectionSqlTypeValue = new ReflectionSqlTypeValue<>(innerType, con,
-                    SqlStructParameter.getTypeName(innerType), instantiatorWrapper);
-                instantiatorWrapper.registerConversionToDatabase(innerType, reflectionSqlTypeValue::getSqlTypeValue);
+            ListParams listParams = null;
+            if (innerType.isAssignableFrom(List.class)) {
+                Field field = findField(clazz, f)
+                    .orElseThrow(() -> new ProcedureWrapperException("Field not found " + f));
+                String arrayName = Optional.ofNullable(field.getAnnotation(OracleArray.class)).map(OracleArray::value)
+                    .orElse(null);
+                if (arrayName != null) {
+                    ParameterizedType listType = (ParameterizedType) field.getGenericType();
+                    Class<?> genericType = (Class<?>) (listType).getActualTypeArguments()[0];
+                    registerType(con, genericType);
+                    listParams = new ListParams(arrayName, genericType);
+                } else {
+                    throw new ProcedureWrapperException("Cannot find OracleArray annotation");
+                }
             }
-            fields.add(value);
+            registerType(con, innerType);
+            fields.add(new MethodFieldWrapper(value, listParams));
         }
     }
 
-
-    class MappedSqlTypeValue extends AbstractSqlTypeValue {
-        private final Object object;
-
-        MappedSqlTypeValue(Object object) {
-            this.object = object;
+    private void registerType(OracleConnection con, Class<?> innerType) throws SQLException {
+        if (innerType.getAnnotation(OracleStruct.class) != null && !instantiatorWrapper
+            .getInstantiatorCache().isKnownInput(innerType)) {
+            ReflectionSqlTypeValue<?> reflectionSqlTypeValue = new ReflectionSqlTypeValue<>(innerType, con,
+                SqlStructParameter.getTypeName(innerType), instantiatorWrapper);
+            instantiatorWrapper.registerConversionToDatabase(innerType, reflectionSqlTypeValue::getSqlTypeValue);
         }
+    }
 
-        @SuppressWarnings("unchecked")
-        @Override
-        public Object createTypeValue(Connection con, int sqlType, String typeName) throws SQLException {
-            List<Object> values = fields.stream().map(method -> {
-                try {
-                    Object value = instantiatorWrapper.valueToDatabase(method.invoke(object));
-                    if (value instanceof ReflectionSqlTypeValue.MappedSqlTypeValue) {
-                        return ((MappedSqlTypeValue) value).createTypeValue(con, sqlType, method.getReturnType()
-                            .getSimpleName());
-                    }
-                    return value;
-                } catch (IllegalAccessException | InvocationTargetException | SQLException ex) {
-                    throw new ProcedureWrapperException("Error on serialization to database", ex);
-                }
-            }).collect(Collectors.toList());
-            StructDescriptor desc = new StructDescriptor(typeName.toUpperCase(), con);
-            return new STRUCT(desc, con, values.toArray());
-        }
+    @Value
+    static class MethodFieldWrapper {
+        Method method;
+        ListParams listParams;
+    }
+
+    @Value
+    static class ListParams {
+        String typeName;
+        Class<?> genericType;
     }
 }

@@ -15,3 +15,23 @@ BEGIN
   --outParam := inParam;--inParam;
   --outParam.rpart:=inParam.rpart+3;
 END;
+
+CREATE OR REPLACE TYPE "Message" AS OBJECT
+(
+   "code" VARCHAR2(15),
+   "message" VARCHAR2(15),
+   "unrelated" COMPLEX
+);
+
+create or replace TYPE "Response" AS OBJECT
+(
+  "message" "Message"
+)
+
+create or replace PROCEDURE test(inParam IN Complex, outParam OUT "Response")
+IS
+  m "Message";
+BEGIN
+  m := "Message"('T', 'B', null);
+  outParam := "Response"(m);
+END;

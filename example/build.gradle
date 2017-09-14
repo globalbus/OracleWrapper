@@ -13,6 +13,5 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}")
     compile("org.springframework.boot:spring-boot-starter-jdbc:${springBootVersion}")
     testCompile("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
-    testCompile("org.springframework.boot:spring-boot-starter-tomcat:${springBootVersion}")
     compileOnly('org.projectlombok:lombok:+')
 }

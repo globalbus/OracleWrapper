@@ -15,10 +15,6 @@ public class SqlStructParameter {
         return new SqlStructInParameter(name, getTypeName(clazz), clazz);
     }
 
-    public SqlParameter createInArray(String name, Class<?> clazz, String arrayTypeName) {
-        return new SqlStructInParameter(name, getTypeName(clazz), clazz, arrayTypeName.toUpperCase());
-    }
-
     public SqlParameter createOut(String name, Class<?> clazz) {
         return new SqlStructOutParameter(name, getTypeName(clazz), clazz);
     }
@@ -36,7 +32,7 @@ public class SqlStructParameter {
         if (annotation == null || StringUtils.isEmpty(annotation.value())) {
             typeName = clazz.getSimpleName().toUpperCase();
         } else {
-            typeName = annotation.value().toUpperCase();
+            typeName = annotation.value();
         }
         return typeName;
     }
@@ -49,12 +45,6 @@ public class SqlStructParameter {
 
         private SqlStructInParameter(String name, String typeName, Class<?> clazz) {
             super(name, Types.STRUCT, typeName);
-            this.clazz = clazz;
-            this.structTypeName = typeName;
-        }
-
-        private SqlStructInParameter(String name, String typeName, Class<?> clazz, String arrayTypeName) {
-            super(name, Types.ARRAY, arrayTypeName);
             this.clazz = clazz;
             this.structTypeName = typeName;
         }

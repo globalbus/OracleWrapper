@@ -13,12 +13,13 @@ import lombok.extern.slf4j.Slf4j;
 import oracle.jdbc.OracleArray;
 import oracle.jdbc.OracleStruct;
 import oracle.sql.STRUCT;
+import org.dalesbred.conversion.TypeConversionRegistry;
 import org.dalesbred.dialect.OracleDialect;
 import org.dalesbred.internal.instantiation.InstantiatorProvider;
 
 /**
  * Instantiator wrapper for handling database to Java conversions. Designed to be used as single instance,
- * with sharing cache between StoredProcedureWrapper instances.
+ * with shared cache between StoredProcedureWrapper instances.
  */
 @Slf4j
 public class InstantiatorWrapper {
@@ -30,12 +31,20 @@ public class InstantiatorWrapper {
     public InstantiatorWrapper() {
         instantiatorProvider = new InstantiatorProvider(new OracleDialect());
         instantiatorCache = new InstantiatorCache(instantiatorProvider);
-        instantiatorProvider.getTypeConversionRegistry().registerConversionFromDatabase(OracleArray.class,
+        TypeConversionRegistry typeConversionRegistry = instantiatorProvider.getTypeConversionRegistry();
+        typeConversionRegistry.registerConversionFromDatabase(OracleArray.class,
             List.class, this::getOutputList);
+        typeConversionRegistry.registerConversionFromDatabase(OracleStruct.class, Void.class, v -> null);
     }
 
     //register custom conversions
     public <S> void registerConversionToDatabase(Class<S> source, Function<S, ?> conversion) {
+        instantiatorProvider.getTypeConversionRegistry().registerConversionToDatabase(source, conversion);
+        instantiatorCache.setKnownInput(source);
+    }
+
+    //register custom conversions
+    public <S> void registerListConversionToDatabase(Class<S> source, Function<S, ?> conversion) {
         instantiatorProvider.getTypeConversionRegistry().registerConversionToDatabase(source, conversion);
         instantiatorCache.setKnownInput(source);
     }
@@ -132,7 +141,7 @@ public class InstantiatorWrapper {
 
     private boolean isUnknown(Class<?> type) {
         return type.getAnnotation(info.globalbus.oraclewrapper.OracleStruct.class) != null
-               && !instantiatorCache.isKnown(type);
+            && !instantiatorCache.isKnown(type);
     }
 
     public <T> void registerReflectiveConversionOutput(Class<T> clazz) throws SQLException {
@@ -145,4 +154,5 @@ public class InstantiatorWrapper {
     public Object valueToDatabase(Object obj) {
         return this.instantiatorProvider.valueToDatabase(obj);
     }
+
 }
