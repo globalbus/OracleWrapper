@@ -92,5 +92,9 @@ public class ProcedureWrapperBuilder<T> {
             }
             return wrapper;
         }
+
+        public synchronized void reset() {
+            procedureCaller = null;
+        }
     }
 }

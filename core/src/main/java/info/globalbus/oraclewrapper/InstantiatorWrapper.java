@@ -6,7 +6,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +35,7 @@ public class InstantiatorWrapper {
         instantiatorProvider = new InstantiatorProvider(new OracleDialect());
         instantiatorCache = new InstantiatorCache(instantiatorProvider);
         TypeConversionRegistry typeConversionRegistry = instantiatorProvider.getTypeConversionRegistry();
-        typeConversionRegistry.registerConversionFromDatabase(OracleArray.class,
-            List.class, this::getOutputList);
+        typeConversionRegistry.registerConversionFromDatabase(OracleArray.class, List.class, this::getOutputList);
         typeConversionRegistry.registerConversionFromDatabase(OracleStruct.class, Void.class, v -> null);
     }
 
@@ -46,12 +48,12 @@ public class InstantiatorWrapper {
     public <T> List<T> getOutputList(Class<T> outputClass, Object output) {
         try {
             if (output instanceof OracleArray) {
-                Object[] structs = (Object[]) ((OracleArray) output).getArray();
-                if (structs.length == 0) {
+                List<Object> structs = Stream.of((Object[]) ((OracleArray) output).getArray())
+                    .filter(Objects::nonNull).collect(Collectors.toList());
+                if (structs.isEmpty()) {
                     return Collections.emptyList();
                 }
                 return readArray(outputClass, structs);
-
             } else {
                 throw new ProcedureWrapperException("Passed object is not a OracleArray");
             }
@@ -64,11 +66,12 @@ public class InstantiatorWrapper {
     @SneakyThrows
     private <T> List<T> getOutputList(Object output) {
         if (output instanceof OracleArray) {
-            Object[] structs = (Object[]) ((OracleArray) output).getArray();
-            if (structs.length == 0) {
+            List<Object> structs = Stream.of((Object[]) ((OracleArray) output).getArray())
+                .filter(Objects::nonNull).collect(Collectors.toList());
+            if (structs.isEmpty()) {
                 return Collections.emptyList();
             }
-            Class<T> type = (Class<T>) instantiatorCache.getClassByName(((STRUCT) structs[0]).getDescriptor()
+            Class<T> type = (Class<T>) instantiatorCache.getClassByName(((STRUCT) structs.get(0)).getDescriptor()
                 .getSQLName());
             return getOutputList(type, output);
         } else {
@@ -76,14 +79,14 @@ public class InstantiatorWrapper {
         }
     }
 
-    private <T> List<T> readArray(Class<T> outputClass, Object[] structs) throws SQLException {
+    private <T> List<T> readArray(Class<T> outputClass, List<Object> structs) throws SQLException {
         List<T> ret = new ArrayList<>();
         InstantiatorCache.InstantiatorEntry<T> entry = instantiatorCache.get(outputClass);
         if (entry == null) {
-            entry = instantiatorCache.add(outputClass, ((STRUCT) structs[0]).getDescriptor());
+            entry = instantiatorCache.add(outputClass, ((STRUCT) structs.get(0)).getDescriptor());
         }
         for (Object obj : structs) {
-            Object[] attr = ((STRUCT) obj).getAttributes();
+            Object[] attr = ((STRUCT) obj).getAttributes(Collections.emptyMap());
             T javaObject = entry.instantiate(attr);
             if (javaObject != null) {
                 ret.add(javaObject);
@@ -100,7 +103,7 @@ public class InstantiatorWrapper {
                 if (entry == null) {
                     entry = instantiatorCache.add(outputClass, struct.getDescriptor());
                 }
-                Object[] attr = struct.getAttributes();
+                Object[] attr = struct.getAttributes(Collections.emptyMap());
                 T javaObject = entry.instantiate(attr);
                 if (javaObject != null) {
                     return javaObject;
@@ -118,6 +121,10 @@ public class InstantiatorWrapper {
 
     private <T> void cacheInnerClasses(Class<T> outputClass) throws SQLException {
         Field[] fields = outputClass.getDeclaredFields();
+        final Class<? super T> superclass = outputClass.getSuperclass();
+        if (superclass != Object.class) {
+            cacheInnerClasses(superclass);
+        }
         for (Field field : fields) {
             Class<?> type = field.getType();
             if (isUnknown(type)) {
@@ -135,7 +142,7 @@ public class InstantiatorWrapper {
 
     private boolean isUnknown(Class<?> type) {
         return type.getAnnotation(info.globalbus.oraclewrapper.OracleStruct.class) != null
-            && !instantiatorCache.isKnown(type);
+               && !instantiatorCache.isKnown(type);
     }
 
     public <T> void registerReflectiveConversionOutput(Class<T> clazz) throws SQLException {

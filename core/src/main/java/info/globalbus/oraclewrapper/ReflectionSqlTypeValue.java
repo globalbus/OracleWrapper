@@ -7,7 +7,9 @@ import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import lombok.AccessLevel;
 import lombok.Value;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import oracle.jdbc.OracleConnection;
 import oracle.sql.StructDescriptor;
@@ -17,6 +19,7 @@ import org.springframework.jdbc.core.SqlTypeValue;
 
 import static info.globalbus.oraclewrapper.internal.util.ReflectionUtils.findField;
 import static info.globalbus.oraclewrapper.internal.util.ReflectionUtils.findGetterOrSetter;
+
 /**
  * Class for caching Java to Database conversion.
  */
@@ -28,7 +31,7 @@ class ReflectionSqlTypeValue<T> {
 
     ReflectionSqlTypeValue(Class<T> clazz, OracleConnection con, String typeName,
         InstantiatorWrapper instantiatorWrapper) throws SQLException {
-        StructDescriptor desc = new StructDescriptor(typeName, con);
+        final StructDescriptor desc = instantiatorWrapper.getInstantiatorCache().getStructFromCache(typeName, con);
         this.clazz = clazz;
         this.instantiatorWrapper = instantiatorWrapper;
         mapFields(desc, con);
@@ -39,7 +42,8 @@ class ReflectionSqlTypeValue<T> {
     }
 
     private void mapFields(StructDescriptor desc, OracleConnection con) throws SQLException {
-        NamedTypeList fieldList = ResultSetUtils.getTypes(desc.getMetaData());
+        NamedTypeList fieldList = instantiatorWrapper.getInstantiatorCache().inConnection(desc, con, () ->
+            ResultSetUtils.getTypes(desc.getMetaData()));
         for (String f : fieldList.getNames()) {
             Method value = findGetterOrSetter(clazz, f, true).orElseThrow(() ->
                 new ProcedureWrapperException("Property " + f + " not found in object " + clazz.getName()));
@@ -65,8 +69,8 @@ class ReflectionSqlTypeValue<T> {
     }
 
     private void registerType(OracleConnection con, Class<?> innerType) throws SQLException {
-        if (innerType.getAnnotation(OracleStruct.class) != null && !instantiatorWrapper
-            .getInstantiatorCache().isKnownInput(innerType)) {
+        if (innerType.getAnnotation(OracleStruct.class) != null && !instantiatorWrapper.getInstantiatorCache()
+            .isKnownInput(innerType)) {
             ReflectionSqlTypeValue<?> reflectionSqlTypeValue = new ReflectionSqlTypeValue<>(innerType, con,
                 SqlStructParameter.getTypeName(innerType), instantiatorWrapper);
             instantiatorWrapper.registerConversionToDatabase(innerType, reflectionSqlTypeValue::getSqlTypeValue);
@@ -74,12 +78,14 @@ class ReflectionSqlTypeValue<T> {
     }
 
     @Value
+    @FieldDefaults(level = AccessLevel.PRIVATE)
     static class MethodFieldWrapper {
         Method method;
         ListParams listParams;
     }
 
     @Value
+    @FieldDefaults(level = AccessLevel.PRIVATE)
     static class ListParams {
         String typeName;
         Class<?> genericType;

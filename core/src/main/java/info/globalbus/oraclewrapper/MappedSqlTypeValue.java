@@ -44,8 +44,8 @@ class MappedSqlTypeValue extends AbstractSqlTypeValue {
                 throw new ProcedureWrapperException("Error on serialization to database", ex);
             }
         }).collect(Collectors.toList());
-        StructDescriptor desc = new StructDescriptor(typeName, con);
-        return new STRUCT(desc, con, values.toArray());
+        final StructDescriptor desc = instantiatorWrapper.getInstantiatorCache().getStructFromCache(typeName, con);
+        return new STRUCT(desc, instantiatorWrapper.getInstantiatorCache().getDummyConnection(), values.toArray());
     }
 
     private static Object getObject(Connection con, int sqlType, Class type, Object value) throws SQLException {
@@ -55,8 +55,8 @@ class MappedSqlTypeValue extends AbstractSqlTypeValue {
         return value;
     }
 
-    private static Object createArray(Connection con, String typeName, Object[] values) throws SQLException {
-        ArrayDescriptor desc = new ArrayDescriptor(typeName, con);
-        return new ARRAY(desc, con, values);
+    private Object createArray(Connection con, String typeName, Object[] values) throws SQLException {
+        final ArrayDescriptor desc = instantiatorWrapper.getInstantiatorCache().getArrayFromCache(typeName, con);
+        return new ARRAY(desc, instantiatorWrapper.getInstantiatorCache().getDummyConnection(), values);
     }
 }
